@@ -3,7 +3,7 @@ Contributors: windcodex
 Tags: claude, chatgpt, mcp server, ai agent, automation
 Requires at least: 6.0
 Tested up to: 7.1
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -167,6 +167,10 @@ Nothing is ever sent to WindCodex, and this plugin does not collect or sell any 
 
 == Changelog ==
 
+= 1.1.1 =
+* New: Help menu in the WindCodex Ops settings header, with quick links to the documentation, the support forum, and leaving a review.
+* New: "Settings" and "Docs" links on the Plugins screen.
+
 = 1.1.0 =
 * New: "Who can connect" setting under Settings > WindCodex Ops > General – Administrators only by default, or Editors and above. Only those users can approve an AI connection on the consent screen.
 * Security: a connection now stops working as soon as the user who approved it loses that role or is deleted, and every tool call requires it.
@@ -182,6 +186,9 @@ Initial release of WindCodex Ops as its own standalone, entirely free plugin cov
 * The Plugins screen's delete confirmation now correctly skips itself when WindCodex Ops Pro is active, since deleting this plugin in that case never touches any data (Pro owns the shared settings and tables).
 
 == Upgrade Notice ==
+
+= 1.1.1 =
+Adds a Help menu to the settings page, plus Settings and Docs links on the Plugins screen.
 
 = 1.1.0 =
 Adds "Who can connect" (Administrators only by default). AI connections approved by an Editor or lower role stop working until you allow Editors in Settings > WindCodex Ops > General, or reconnect as an Administrator.

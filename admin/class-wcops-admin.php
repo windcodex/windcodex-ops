@@ -46,6 +46,7 @@ class WCOPS_Admin {
 		add_action( 'admin_post_wcops_onboarding', array( $this, 'handle_onboarding' ) );
 		add_action( 'admin_post_wcops_clear_log', array( $this, 'handle_clear_log' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_notice' ) );
+		add_filter( 'plugin_action_links_' . WCOPS_PLUGIN_BASE, array( $this, 'plugin_action_links' ) );
 	}
 
 	public function add_settings_page() {
@@ -56,6 +57,16 @@ class WCOPS_Admin {
 			'windcodex-ops',
 			array( $this, 'render_page' )
 		);
+	}
+
+	/**
+	 * Add "Settings" and "Docs" links to the plugin's row on the Plugins screen.
+	 */
+	public function plugin_action_links( array $links ): array {
+		$settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=windcodex-ops' ) ) . '">' . esc_html__( 'Settings', 'windcodex-ops' ) . '</a>';
+		$docs_link     = '<a href="' . esc_url( 'https://docs.windcodex.com/docs/ops' ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Docs', 'windcodex-ops' ) . '</a>';
+		array_unshift( $links, $settings_link, $docs_link );
+		return $links;
 	}
 
 	public function maybe_show_notice() {
@@ -505,6 +516,43 @@ class WCOPS_Admin {
 
 			.wcops-header-right { display: flex; align-items: center; gap: 12px; flex: none; }
 
+			.wcops-help-wrap { position: relative; }
+			.wcops-help-btn {
+				display: inline-flex; align-items: center; gap: 5px;
+				padding: 7px 13px;
+				border: 1px solid var(--wcops-accent); border-radius: var(--wcops-radius-sm);
+				background: var(--wcops-surface); color: var(--wcops-accent);
+				font-size: 13px; font-weight: 600; font-family: inherit; line-height: 1;
+				cursor: pointer;
+				transition: background .15s ease;
+			}
+			.wcops-help-btn .dashicons { font-size: 18px; width: 18px; height: 18px; }
+			.wcops-help-btn:hover,
+			.wcops-help-btn.is-open { background: rgba(24, 95, 165, 0.08); }
+			.wcops-help-btn:focus-visible { outline: 2px solid var(--wcops-accent); outline-offset: 2px; }
+			.wcops-help-dropdown {
+				position: absolute; top: calc(100% + 8px); right: 0; z-index: 9999;
+				min-width: 200px; overflow: hidden;
+				background: var(--wcops-surface);
+				border: 0.5px solid var(--wcops-border); border-radius: var(--wcops-radius-sm);
+				box-shadow: 0 4px 20px rgba(20, 24, 31, 0.12);
+			}
+			.wcops-help-dropdown[hidden] { display: none; }
+			.wcops-help-item {
+				display: flex; align-items: center; gap: 10px;
+				padding: 10px 14px;
+				font-size: 13px; font-weight: 500; color: var(--wcops-text);
+				text-decoration: none;
+				border-bottom: 0.5px solid var(--wcops-border);
+				transition: background .12s ease, color .12s ease;
+			}
+			.wcops-help-item:last-child { border-bottom: none; }
+			.wcops-help-item:hover,
+			.wcops-help-item:focus { background: var(--wcops-surface-muted); color: var(--wcops-accent); box-shadow: none; }
+			.wcops-help-item-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; color: var(--wcops-text-muted); }
+			.wcops-help-item:hover .wcops-help-item-icon,
+			.wcops-help-item:focus .wcops-help-item-icon { color: var(--wcops-accent); }
+
 			.wcops-tabs {
 				display: flex; gap: 12px;
 				border-bottom: 0.5px solid var(--wcops-border);
@@ -743,6 +791,32 @@ class WCOPS_Admin {
 					});
 				});
 			});
+
+			var helpBtn = document.getElementById('wcops-help-btn');
+			var helpDropdown = document.getElementById('wcops-help-dropdown');
+			if (helpBtn && helpDropdown) {
+				var setHelpOpen = function (open) {
+					helpDropdown.hidden = !open;
+					helpBtn.classList.toggle('is-open', open);
+					helpBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+				};
+				helpBtn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					setHelpOpen(helpDropdown.hidden);
+				});
+				helpDropdown.addEventListener('click', function (e) {
+					e.stopPropagation();
+				});
+				document.addEventListener('click', function () {
+					setHelpOpen(false);
+				});
+				document.addEventListener('keydown', function (e) {
+					if ('Escape' === e.key && !helpDropdown.hidden) {
+						setHelpOpen(false);
+						helpBtn.focus();
+					}
+				});
+			}
 		});
 		<?php
 		$js = ob_get_clean();
@@ -775,6 +849,28 @@ class WCOPS_Admin {
 						<h1>WindCodex Ops</h1>
 						<span class="wcops-header-rule"></span>
 						<p>Control what your AI assistant can do on this site</p>
+					</div>
+				</div>
+				<div class="wcops-header-right">
+					<div class="wcops-help-wrap">
+						<button type="button" class="wcops-help-btn" id="wcops-help-btn" aria-expanded="false" aria-haspopup="true" aria-controls="wcops-help-dropdown">
+							<span class="dashicons dashicons-editor-help"></span>
+							<?php esc_html_e( 'Help', 'windcodex-ops' ); ?>
+						</button>
+						<div class="wcops-help-dropdown" id="wcops-help-dropdown" hidden>
+							<a href="https://docs.windcodex.com/docs/ops" target="_blank" rel="noopener" class="wcops-help-item">
+								<span class="wcops-help-item-icon dashicons dashicons-media-document"></span>
+								<?php esc_html_e( 'Documentation', 'windcodex-ops' ); ?>
+							</a>
+							<a href="https://wordpress.org/support/plugin/windcodex-ops/" target="_blank" rel="noopener" class="wcops-help-item">
+								<span class="wcops-help-item-icon dashicons dashicons-sos"></span>
+								<?php esc_html_e( 'Support Forum', 'windcodex-ops' ); ?>
+							</a>
+							<a href="https://wordpress.org/support/plugin/windcodex-ops/reviews/#new-post" target="_blank" rel="noopener" class="wcops-help-item">
+								<span class="wcops-help-item-icon dashicons dashicons-star-filled"></span>
+								<?php esc_html_e( 'Submit a Review', 'windcodex-ops' ); ?>
+							</a>
+						</div>
 					</div>
 				</div>
 			</div>

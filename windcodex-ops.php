@@ -3,7 +3,7 @@
  * Plugin Name:       WindCodex Ops – Safe AI Actions
  * Plugin URI:        https://windcodex.com/
  * Description:       Gives Claude, ChatGPT, and other MCP-compatible AI platforms a safe, pre-approved set of actions for everyday WordPress content management – posts, pages, media, SEO, navigation, and site health – with undo protection, previews before risky changes, and full OAuth-based authentication. Never runs raw code or touches site files directly.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            WindCodex
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // No direct access.
 }
 
-define( 'WCOPS_VERSION', '1.1.0' );
+define( 'WCOPS_VERSION', '1.1.1' );
 define( 'WCOPS_PLUGIN_FILE', __FILE__ );
 define( 'WCOPS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WCOPS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -69,10 +69,36 @@ function wcops_pro_is_active() {
 	return is_plugin_active( WCOPS_PRO_PLUGIN_BASE );
 }
 
+/**
+ * Set by wcops_activate() when an activation is refused because Pro is
+ * active, so the Plugins screen that loads next can say "not activated"
+ * rather than "deactivated".
+ */
+define( 'WCOPS_ACTIVATION_REFUSED', 'wcops_activation_refused' );
+
+function wcops_activation_refused_message() {
+	return __( '<strong>WindCodex Ops</strong> was not activated because <strong>WindCodex Ops Pro</strong> is already active. Pro includes every tool this plugin offers, so you don\'t need both. To use the free version instead, deactivate WindCodex Ops Pro first.', 'windcodex-ops' );
+}
+
 function wcops_pro_active_notice() {
-	echo '<div class="notice notice-error"><p>';
-	echo wp_kses_post( __( '<strong>WindCodex Ops</strong> has been deactivated because <strong>WindCodex Ops Pro</strong> is active - Pro already includes every tool this plugin offers, so running both isn\'t necessary.', 'windcodex-ops' ) );
-	echo '</p></div>';
+	$refused = get_transient( WCOPS_ACTIVATION_REFUSED );
+	delete_transient( WCOPS_ACTIVATION_REFUSED );
+
+	$message = $refused
+		? wcops_activation_refused_message()
+		: __( '<strong>WindCodex Ops</strong> has been deactivated because <strong>WindCodex Ops Pro</strong> is active - Pro already includes every tool this plugin offers, so running both isn\'t necessary.', 'windcodex-ops' );
+
+	echo '<div class="notice notice-error is-dismissible"><p>' . wp_kses_post( $message ) . '</p></div>';
+}
+
+/**
+ * On the Plugins screen straight after a refused activation, drop the
+ * "Plugin activated." message WordPress would otherwise print next to ours.
+ */
+function wcops_hide_activated_message() {
+	if ( get_transient( WCOPS_ACTIVATION_REFUSED ) ) {
+		unset( $_GET['activate'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only suppresses a core display message, no state change.
+	}
 }
 
 /**
@@ -80,10 +106,31 @@ function wcops_pro_active_notice() {
  */
 function wcops_init() {
 	if ( wcops_pro_is_active() ) {
-		deactivate_plugins( WCOPS_PLUGIN_BASE );
-		add_action( 'admin_notices', 'wcops_pro_active_notice' );
+		// Straight after a refused activation, only switch off on a real admin
+		// page (normally the Plugins screen WordPress redirects to), where the
+		// notice below can explain it. A cron, AJAX, REST or front-end request
+		// that happens to run first would otherwise deactivate Ops silently.
+		// Until then Ops stays inert; the transient's expiry bounds the wait.
+		if ( get_transient( WCOPS_ACTIVATION_REFUSED ) && ( ! is_admin() || wp_doing_ajax() ) ) {
+			return;
+		}
+
+		// Silent: skip our deactivation hook - nothing was set up, and
+		// flushing rewrite rules this early (plugins_loaded) isn't safe.
+		deactivate_plugins( WCOPS_PLUGIN_BASE, true );
+		if ( is_admin() ) {
+			add_action( 'load-plugins.php', 'wcops_hide_activated_message' );
+			add_action( 'admin_notices', 'wcops_pro_active_notice' );
+			add_action( 'network_admin_notices', 'wcops_pro_active_notice' );
+		}
 		return;
 	}
+
+	// Registered here, after the Pro check, so nothing of Ops runs next to
+	// Pro and a refused activation leaves no trace (no flush, no option).
+	add_action( 'init', 'wcops_maybe_flush_rewrite_rules', 20 );
+	add_action( 'template_redirect', array( 'WCOPS_Redirects', 'maybe_redirect' ) );
+	add_filter( 'robots_txt', 'wcops_filter_robots_txt' );
 
 	WCOPS_Settings::instance();
 	WCOPS_OAuth::instance();
@@ -139,20 +186,15 @@ function wcops_init() {
 }
 add_action( 'plugins_loaded', 'wcops_init' );
 
-add_action( 'template_redirect', array( 'WCOPS_Redirects', 'maybe_redirect' ) );
-
 /**
  * Applies the custom robots.txt content set via wp_update_robots_txt, if
  * any – only takes effect when WordPress is generating robots.txt
  * dynamically (i.e. no physical robots.txt file exists on the server).
  */
-add_filter(
-	'robots_txt',
-	function ( $output ) {
-		$custom = get_option( 'wcops_custom_robots_txt' );
-		return $custom ? $custom : $output;
-	}
-);
+function wcops_filter_robots_txt( $output ) {
+	$custom = get_option( 'wcops_custom_robots_txt' );
+	return $custom ? $custom : $output;
+}
 
 /**
  * Flush rewrite rules once after updating to a version that changed them,
@@ -169,21 +211,29 @@ function wcops_maybe_flush_rewrite_rules() {
 		update_option( 'wcops_rewrite_flushed_version', WCOPS_VERSION );
 	}
 }
-add_action( 'init', 'wcops_maybe_flush_rewrite_rules', 20 );
 
 /**
- * On activation: refuse to stay active if Pro is already running (Pro
- * already includes every feature this plugin offers), otherwise set sane defaults and
+ * On activation: refuse to activate, with an explanation, if Pro is already
+ * running (Pro includes every feature this plugin offers), otherwise set sane defaults and
  * create the OAuth tables (including a pre-registered static client so
  * there's always a Client ID/Secret an admin can paste manually if a
  * platform's auto-registration fails).
  */
 function wcops_activate() {
 	if ( wcops_pro_is_active() ) {
-		deactivate_plugins( WCOPS_PLUGIN_BASE );
-		set_transient( 'wcops_activation_blocked', true, 30 );
-		wp_safe_redirect( admin_url( 'plugins.php' ) );
-		exit;
+		// WP-CLI has no Plugins screen to show a notice on, so refuse outright:
+		// WordPress only adds a plugin to active_plugins after this hook
+		// returns, so stopping here leaves Ops inactive with the reason
+		// printed as a CLI error.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			wp_die( wp_kses_post( wcops_activation_refused_message() ) );
+		}
+
+		// In the browser, skip all setup and let WordPress return to the
+		// Plugins screen; wcops_init() switches Ops straight back off on
+		// that load and shows wcops_pro_active_notice() explaining why.
+		set_transient( WCOPS_ACTIVATION_REFUSED, 1, 5 * MINUTE_IN_SECONDS );
+		return;
 	}
 
 	if ( false === get_option( 'wcops_settings' ) ) {
