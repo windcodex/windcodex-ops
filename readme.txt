@@ -168,6 +168,10 @@ Nothing is ever sent to WindCodex, and this plugin does not collect or sell any 
 == Changelog ==
 
 = 1.1.1 =
+* New: "Require preview before high-risk actions" now works. Actions that can't be undone – permanently deleting media, recompressing an image, deleting a category or tag, removing a menu item, navigation item or widget – first return a preview and only run when the AI calls again with confirm=true.
+* New: "Email me on high-risk actions" now emails the site admin address whenever a high-risk action runs (including confirmed bulk changes), limited to 10 emails an hour.
+* New: "Weekly activity summary" now emails a weekly digest of tool calls, changes and high-risk actions. Weeks with no activity are skipped.
+* Tweak: clearer descriptions for these settings and for "Show activity feed".
 * New: Help menu in the WindCodex Ops settings header, with quick links to the documentation, the support forum, and leaving a review.
 * New: "Settings" and "Docs" links on the Plugins screen.
 
@@ -188,7 +192,7 @@ Initial release of WindCodex Ops as its own standalone, entirely free plugin cov
 == Upgrade Notice ==
 
 = 1.1.1 =
-Adds a Help menu to the settings page, plus Settings and Docs links on the Plugins screen.
+High-risk previews, email alerts on high-risk actions and the weekly activity summary now work. Also adds a Help menu to the settings page, plus Settings and Docs links on the Plugins screen.
 
 = 1.1.0 =
 Adds "Who can connect" (Administrators only by default). AI connections approved by an Editor or lower role stop working until you allow Editors in Settings > WindCodex Ops > General, or reconnect as an Administrator.

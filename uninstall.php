@@ -30,6 +30,9 @@ if ( is_plugin_active( 'windcodex-ops-pro/windcodex-ops-pro.php' ) ) {
 	return;
 }
 
+// The weekly summary is this plugin's own cron event - always remove it.
+wp_clear_scheduled_hook( 'wcops_weekly_summary' );
+
 $wcops_settings = get_option( 'wcops_settings', array() );
 
 if ( empty( $wcops_settings['delete_data_on_uninstall'] ) ) {
@@ -45,6 +48,7 @@ delete_option( 'wcops_undo_log_installed' );
 delete_option( 'wcops_redirects_installed' );
 delete_option( 'wcops_rewrite_flushed_version' );
 delete_option( 'wcops_last_activity' );
+delete_transient( 'wcops_alerts_sent_hour' );
 
 // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table names only, no user input; uninstall-time cleanup of this plugin's own tables, opted into explicitly.
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcops_oauth_clients" );

@@ -36,6 +36,7 @@ require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-oauth.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-activity-log.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-undo-log.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-redirects.php';
+require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-notifications.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-tools.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-server.php';
 require_once WCOPS_PLUGIN_DIR . 'includes/class-wcops-abilities.php';
@@ -133,6 +134,7 @@ function wcops_init() {
 	add_filter( 'robots_txt', 'wcops_filter_robots_txt' );
 
 	WCOPS_Settings::instance();
+	WCOPS_Notifications::init();
 	WCOPS_OAuth::instance();
 	WCOPS_Server::instance();
 	WCOPS_Abilities::instance();
@@ -265,6 +267,7 @@ register_activation_hook( __FILE__, 'wcops_activate' );
  * so re-activating doesn't break an existing connector.
  */
 function wcops_deactivate() {
+	WCOPS_Notifications::unschedule();
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'wcops_deactivate' );

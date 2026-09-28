@@ -71,6 +71,19 @@ class WCOPS_Tools {
 		// isn't much of a safety net.
 		$tools = array_merge( $tools, $this->undo_tools() );
 
+		// Advertise the confirm step on tools the preview gate applies to.
+		foreach ( $tools as &$tool ) {
+			if ( WCOPS_Notifications::needs_preview( $tool['name'] ) ) {
+				$tool['inputSchema']['properties']['confirm'] = array(
+					'type'        => 'boolean',
+					'default'     => false,
+					'description' => 'false (default) returns a preview only. Set true, after the user approves the preview, to actually run this action. It cannot be undone.',
+				);
+				$tool['description'] .= ' High-risk: the first call returns a preview; call again with confirm=true to apply.';
+			}
+		}
+		unset( $tool );
+
 		// If read-only mode is on, strip out every tool that isn't flagged readOnlyHint.
 		if ( $this->settings->is_read_only() ) {
 			$tools = array_values(
@@ -118,6 +131,73 @@ class WCOPS_Tools {
 			return $this->error_result( 'Your account is not allowed to use this connector.' );
 		}
 
+		// "Require preview before high-risk actions": changes the undo log
+		// can't reverse only run once the AI has shown this preview and
+		// comes back with confirm=true.
+		if ( WCOPS_Notifications::needs_preview( $name ) && empty( $args['confirm'] ) && ! $this->settings->is_read_only() ) {
+			return $this->high_risk_preview( $name, $args );
+		}
+
+		$result = $this->dispatch( $name, $args );
+
+		WCOPS_Notifications::maybe_send_high_risk_alert( $name, $args, $result, $acting_user_id );
+
+		return $result;
+	}
+
+	/**
+	 * Preview returned instead of running a gated high-risk tool.
+	 */
+	private function high_risk_preview( $name, array $args ) {
+		$definition = null;
+		foreach ( $this->get_tool_definitions() as $tool ) {
+			if ( $tool['name'] === $name ) {
+				$definition = $tool;
+				break;
+			}
+		}
+
+		$partial_undo = in_array( $name, array( 'wp_delete_category', 'wp_delete_tag' ), true );
+		$targets      = array();
+		foreach ( $args as $key => $value ) {
+			if ( ! is_numeric( $value ) || ! preg_match( '/(^|_)id$/', $key ) ) {
+				continue;
+			}
+			$id = (int) $value;
+			if ( in_array( $name, array( 'wp_delete_category', 'wp_delete_tag' ), true ) ) {
+				$term = get_term( $id );
+				if ( $term && ! is_wp_error( $term ) ) {
+					$targets[] = sprintf( '%s "%s" (ID %d, used by %d posts)', $term->taxonomy, $term->name, $id, $term->count );
+				}
+			} elseif ( 'wp_remove_navigation_menu_item' !== $name ) {
+				$post = get_post( $id );
+				if ( $post ) {
+					$targets[] = sprintf( '%s "%s" (ID %d)', $post->post_type, $post->post_title, $id );
+				}
+			}
+		}
+
+		return $this->text_result(
+			wp_json_encode(
+				array(
+					'preview_only' => true,
+					'tool'         => $name,
+					'action'       => $definition['description'] ?? $name,
+					'arguments'    => $args,
+					'targets'      => $targets,
+					'undoable'     => $partial_undo ? 'partial - undo recreates the term, but posts are not re-assigned to it' : false,
+					'note'         => 'Nothing has been changed. This is a high-risk action that cannot be fully undone. Show this preview to the user, and only if they approve, call ' . $name . ' again with the same arguments plus confirm: true.',
+				),
+				JSON_PRETTY_PRINT
+			)
+		);
+	}
+
+	/**
+	 * Run a tool by name. Callers have already checked availability and
+	 * permissions.
+	 */
+	private function dispatch( $name, array $args ) {
 		try {
 			switch ( $name ) {
 				case 'wp_get_site_info':

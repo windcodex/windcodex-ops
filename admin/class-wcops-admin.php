@@ -1270,7 +1270,7 @@ class WCOPS_Admin {
 				<div class="wcops-field-row wcops-toggle-row">
 					<div>
 						<span class="wcops-field-label">Require preview before high-risk actions</span>
-						<p class="wcops-field-desc">Show a dry-run summary before risky changes apply.</p>
+						<p class="wcops-field-desc">Actions that can't be undone – permanently deleting media, recompressing an image, deleting a category or tag, removing a menu item, navigation item or widget – first return a preview, and only run when the AI calls again to confirm. Bulk tools always preview first, whatever this is set to.</p>
 					</div>
 					<label class="wcops-switch"><input type="checkbox" name="require_preview_on_high_risk" value="1" <?php checked( $settings['require_preview_on_high_risk'] ?? true ); ?> /><span class="wcops-slider"></span></label>
 				</div>
@@ -1278,7 +1278,7 @@ class WCOPS_Admin {
 				<div class="wcops-field-row wcops-toggle-row">
 					<div>
 						<span class="wcops-field-label">Show activity feed</span>
-						<p class="wcops-field-desc">List every AI action – what ran, when, and whether it succeeded – on the Activity tab so you can see at a glance what the AI has been doing. Display only: turning this off just hides the feed, it doesn't touch the undo guarantee below.</p>
+						<p class="wcops-field-desc">List every AI action – what ran, when, and whether it succeeded – on the Activity tab so you can see at a glance what the AI has been doing. Turning this off stops recording new calls; it doesn't touch the undo guarantee below.</p>
 					</div>
 					<label class="wcops-switch"><input type="checkbox" name="log_ai_activity" value="1" <?php checked( $settings['log_ai_activity'] ?? true ); ?> /><span class="wcops-slider"></span></label>
 				</div>
@@ -1304,7 +1304,7 @@ class WCOPS_Admin {
 				<div class="wcops-field-row wcops-toggle-row">
 					<div>
 						<span class="wcops-field-label">Email me on high-risk actions</span>
-						<p class="wcops-field-desc">Get notified when a high-risk tool runs.</p>
+						<p class="wcops-field-desc">Email the site admin address (<?php echo esc_html( get_option( 'admin_email' ) ); ?>) each time a high-risk action actually runs – the tools above plus confirmed bulk changes. Limited to 10 emails an hour.</p>
 					</div>
 					<label class="wcops-switch"><input type="checkbox" name="email_alerts_on_high_risk" value="1" <?php checked( $settings['email_alerts_on_high_risk'] ?? false ); ?> /><span class="wcops-slider"></span></label>
 				</div>
@@ -1312,7 +1312,7 @@ class WCOPS_Admin {
 				<div class="wcops-field-row wcops-toggle-row">
 					<div>
 						<span class="wcops-field-label">Weekly activity summary</span>
-						<p class="wcops-field-desc">A digest of what the AI did this week.</p>
+						<p class="wcops-field-desc">Once a week, email the site admin address a summary of tool calls, changes and high-risk actions from the last 7 days. Skipped in weeks with no activity.</p>
 					</div>
 					<label class="wcops-switch"><input type="checkbox" name="weekly_activity_summary" value="1" <?php checked( $settings['weekly_activity_summary'] ?? true ); ?> /><span class="wcops-slider"></span></label>
 				</div>
